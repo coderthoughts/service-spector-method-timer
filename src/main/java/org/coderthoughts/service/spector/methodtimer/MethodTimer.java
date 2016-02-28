@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.coderthoughts.service.spector.ServiceAspect;
+import org.osgi.framework.ServiceReference;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.ServiceScope;
 
@@ -16,12 +17,17 @@ public class MethodTimer implements ServiceAspect {
     ThreadLocal<Long> startNanoThreadLocal = new ThreadLocal<>();
 
     @Override
-    public void preServiceInvoke(Object service, Method method, Object[] args) throws Exception {
+    public String announce() {
+        return "Invocation Duration measurement started.\n";
+    }
+
+    @Override
+    public void preServiceInvoke(ServiceReference<?> service, Method method, Object[] args) {
         startNanoThreadLocal.set(System.nanoTime());
     }
 
     @Override
-    public void postServiceInvoke(Object service, Method method, Object[] args, Object result) throws Exception {
+    public void postServiceInvoke(ServiceReference<?> service, Method method, Object[] args, Object result) {
         long endNanos = System.nanoTime();
         long startNanos = startNanoThreadLocal.get();
         long duration = endNanos - startNanos;
@@ -33,13 +39,14 @@ public class MethodTimer implements ServiceAspect {
     }
 
     @Override
-    public void report() {
-        System.out.println("Invocation duration (nanoseconds)");
-        System.out.println("=================================");
+    public String report() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Invocation duration (nanoseconds)\n");
+        sb.append("=================================\n");
         for (Map.Entry<String, Queue<Long>> entry : invocationDurations.entrySet()) {
             long average = (long) entry.getValue().stream().mapToLong(Long::longValue).average().getAsDouble();
-            System.out.println(entry.getKey() + ": " + average);
+            sb.append(entry.getKey() + ": " + average + "\n");
         }
-        System.out.println();
+        return sb.toString();
     }
 }
